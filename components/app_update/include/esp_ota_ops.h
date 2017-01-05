@@ -138,7 +138,7 @@ esp_err_t esp_ota_set_boot_partition(const esp_partition_t* partition);
  *
  * @return Pointer to info for partition structure, or NULL if partition table is invalid or a flash read operation failed. Any returned pointer is valid for the lifetime of the application.
  */
-const esp_partition_t* esp_ota_get_boot_partition(void);
+esp_partition_t* esp_ota_get_boot_partition(void);
 
 
 /**

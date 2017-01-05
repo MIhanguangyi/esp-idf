@@ -123,7 +123,7 @@
 #endif
 
 #if CONFIG_FREERTOS_ASSERT_ON_UNTESTED_FUNCTION
-#define UNTESTED_FUNCTION() { ets_printf("Untested FreeRTOS function %s\r\n", __FUNCTION__); configASSERT(false); } while(0)
+#define UNTESTED_FUNCTION() //{ ets_printf("Untested FreeRTOS function %s\r\n", __FUNCTION__); configASSERT(false); } while(0)
 #else
 #define UNTESTED_FUNCTION()
 #endif
@@ -190,8 +190,8 @@
 #define configTOTAL_HEAP_SIZE			(&_heap_end - &_heap_start)//( ( size_t ) (64 * 1024) )
 
 #define configMAX_TASK_NAME_LEN			( CONFIG_FREERTOS_MAX_TASK_NAME_LEN )
-#define configUSE_TRACE_FACILITY		0		/* Used by vTaskList in main.c */
-#define configUSE_STATS_FORMATTING_FUNCTIONS	0	/* Used by vTaskList in main.c */
+#define configUSE_TRACE_FACILITY		1		/* Used by vTaskList in main.c */
+#define configUSE_STATS_FORMATTING_FUNCTIONS	1	/* Used by vTaskList in main.c */
 #define configUSE_TRACE_FACILITY_2      0		/* Provided by Xtensa port patch */
 #define configBENCHMARK					0		/* Provided by Xtensa port patch */
 #define configUSE_16_BIT_TICKS			0

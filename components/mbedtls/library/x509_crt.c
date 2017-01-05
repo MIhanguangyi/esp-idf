@@ -40,6 +40,7 @@
 #include "mbedtls/x509_crt.h"
 #include "mbedtls/oid.h"
 
+#include "rom/ets_sys.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -1912,11 +1913,11 @@ static int x509_crt_verify_top(
     const mbedtls_md_info_t *md_info;
     mbedtls_x509_crt *future_past_ca = NULL;
 
-    if( mbedtls_x509_time_is_past( &child->valid_to ) )
+    /*if( mbedtls_x509_time_is_past( &child->valid_to ) )
         *flags |= MBEDTLS_X509_BADCERT_EXPIRED;
 
     if( mbedtls_x509_time_is_future( &child->valid_from ) )
-        *flags |= MBEDTLS_X509_BADCERT_FUTURE;
+        *flags |= MBEDTLS_X509_BADCERT_FUTURE;*/
 
     if( x509_profile_check_md_alg( profile, child->sig_md ) != 0 )
         *flags |= MBEDTLS_X509_BADCERT_BAD_MD;
@@ -1971,7 +1972,6 @@ static int x509_crt_verify_top(
         {
             continue;
         }
-
         if( mbedtls_x509_time_is_past( &trust_ca->valid_to ) ||
             mbedtls_x509_time_is_future( &trust_ca->valid_from ) )
         {
