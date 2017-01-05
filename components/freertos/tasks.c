@@ -187,7 +187,8 @@ typedef struct tskTaskControlBlock
 	#if ( configUSE_TRACE_FACILITY == 1 )
 		UBaseType_t		uxTCBNumber;		/*< Stores a number that increments each time a TCB is created.  It allows debuggers to determine when a task has been deleted and then recreated. */
 		UBaseType_t  	uxTaskNumber;		/*< Stores a number specifically for use by third party trace code. */
-	#endif
+		UBaseType_t     uxStackLen;         /*< Stores a stack length for test by xiaomi.zengfan. */
+		#endif
 
 	#if ( configUSE_MUTEXES == 1 )
 		UBaseType_t 	uxBasePriority;		/*< The priority last assigned to the task - used by the priority inheritance mechanism. */
@@ -936,6 +937,7 @@ UBaseType_t x;
 
 	pxNewTCB->uxPriority = uxPriority;
 	pxNewTCB->xCoreID = xCoreID;
+	pxNewTCB->uxStackLen = ulStackDepth;//add by xiaomi.
 	#if ( configUSE_MUTEXES == 1 )
 	{
 		pxNewTCB->uxBasePriority = uxPriority;
@@ -3645,6 +3647,7 @@ BaseType_t xTaskGetAffinity( TaskHandle_t xTask )
 				pxTaskStatusArray[ uxTask ].xHandle = ( TaskHandle_t ) pxNextTCB;
 				pxTaskStatusArray[ uxTask ].pcTaskName = ( const char * ) &( pxNextTCB->pcTaskName [ 0 ] );
 				pxTaskStatusArray[ uxTask ].xTaskNumber = pxNextTCB->uxTCBNumber;
+				pxTaskStatusArray[ uxTask ].uxStackDepth = pxNextTCB->uxStackLen;//add by xiaomi.zengfan
 				pxTaskStatusArray[ uxTask ].eCurrentState = eState;
 				pxTaskStatusArray[ uxTask ].uxCurrentPriority = pxNextTCB->uxPriority;
 
@@ -4260,7 +4263,7 @@ is not running.  Re-enabling the scheduler will re-enable the interrupts instead
 				pcWriteBuffer = prvWriteNameToBuffer( pcWriteBuffer, pxTaskStatusArray[ x ].pcTaskName );
 
 				/* Write the rest of the string. */
-				sprintf( pcWriteBuffer, "\t%c\t%u\t%u\t%u\r\n", cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
+				sprintf( pcWriteBuffer, "\t%c\t%u\t%u\t%u\t%u\r\n", cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, (unsigned int) pxTaskStatusArray[ x ].uxStackDepth, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
 				pcWriteBuffer += strlen( pcWriteBuffer );
 			}
 
