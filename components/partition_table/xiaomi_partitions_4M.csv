@@ -1,0 +1,10 @@
+# Name,   Type, SubType, Offset,  Size
+# Note: if you change the phy_init or app partition offset, make sure to change the offset in Kconfig.projbuild
+# xiaomi flash layout.first fw addr 0x10000, second fw addr 0x180000,factory fw can load at second fw.
+# notice: ota start address must align at 64K.
+nvs,      data, nvs,     0x9000,  0x4000
+otadata,  data, ota,     0xd000,  0x2000
+phy_init, data, phy,     0xf000,  0x1000
+miio_fw1, app,  ota_0, 	 0x10000, 0x163000
+miio_fw2, app,  ota_1,	 0x180000,0x163000
+

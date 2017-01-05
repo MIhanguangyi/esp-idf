@@ -709,7 +709,8 @@ netconn_write_partly(struct netconn *conn, const void *dataptr, size_t size,
   }
   dontblock = netconn_is_nonblocking(conn) || (apiflags & NETCONN_DONTBLOCK);
 
-  if (dontblock && !bytes_written) {
+
+    if (dontblock && !bytes_written) {
     /* This implies netconn_write() cannot be used for non-blocking send, since
        it has no way to return the number of bytes written. */
     return ERR_VAL;

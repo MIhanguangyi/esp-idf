@@ -404,7 +404,7 @@ esp_err_t esp_ota_set_boot_partition(const esp_partition_t *partition)
     }
 }
 
-const esp_partition_t *esp_ota_get_boot_partition(void)
+esp_partition_t *esp_ota_get_boot_partition(void)
 {
     esp_err_t ret;
     const esp_partition_t *find_partition = NULL;
