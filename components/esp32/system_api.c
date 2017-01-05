@@ -119,7 +119,7 @@ esp_err_t esp_efuse_read_mac(uint8_t* mac)
             }
         } else {
             ESP_LOGE(TAG, "MAC address CRC error, efuse_crc = 0x%02x; calc_crc = 0x%02x", efuse_crc, calc_crc);
-            abort();
+            //abort();//add by xiaomi hanguangyi.
         }
     }
     return ESP_OK;
