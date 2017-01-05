@@ -863,6 +863,8 @@ typedef struct xSTATIC_TCB
 	void				*pxDummy6;
 	uint8_t				ucDummy7[ configMAX_TASK_NAME_LEN ];
     UBaseType_t			uxDummyCoreId;
+    UBaseType_t     	uxStackLen;         /*< bill debug Stores a stack length for test by xiaomi.zengfan. */
+
 	#if ( portSTACK_GROWTH > 0 || configENABLE_TASK_SNAPSHOT == 1 )
 		void            *pxDummy8;
 	#endif
