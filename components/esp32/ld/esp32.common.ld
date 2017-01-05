@@ -111,6 +111,28 @@ SECTIONS
     *(.dram1 .dram1.*)
     *libesp32.a:panic.o(.rodata .rodata.*)
     _data_end = ABSOLUTE(.);
+    /*add Function Symble Table by xiaomi.*/
+    . = ALIGN(4);
+        addlib_fsymtab_start = .;
+        KEEP(*(FSymTab));
+        addlib_fsymtab_end = .;
+
+    . = ALIGN(4);
+        addlib_vsymtab_start = .;
+        KEEP(*(VSymTab))
+        addlib_vsymtab_end = .;
+
+       /*add user Function Symble Table*/
+    . = ALIGN(4);
+        addlib_user_fsymtab_start = .;
+        KEEP(*(UserFSymTab));
+        addlib_user_fsymtab_end = .;
+
+    . = ALIGN(4);
+        addlib_user_vsymtab_start = .;
+        KEEP(*(UserVSymTab))
+        addlib_user_vsymtab_end = .;
+    /*add Function Symble Table by xiaomi end.*/
     . = ALIGN(4);
   } >dram0_0_seg
 
@@ -194,4 +216,11 @@ SECTIONS
     _text_end = ABSOLUTE(.);
     _etext = .;
   } >iram0_2_seg
+  
+  /*add Function Symble Table by xiaomi.*/
+PROVIDE ( addlib_fsymtab_area_size = addlib_fsymtab_end - addlib_fsymtab_start);
+PROVIDE ( addlib_vsymtab_area_size = addlib_vsymtab_end - addlib_vsymtab_start);
+PROVIDE ( addlib_user_fsymtab_area_size = addlib_user_fsymtab_end - addlib_user_fsymtab_start);
+PROVIDE ( addlib_user_vsymtab_area_size = addlib_user_vsymtab_end - addlib_user_vsymtab_start);
+/*add Function Symble Table by xiaomi end.*/
 }
