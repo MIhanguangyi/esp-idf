@@ -1627,7 +1627,7 @@
  * LWIP_SO_LINGER==1: Enable SO_LINGER processing.
  */
 #ifndef LWIP_SO_LINGER
-#define LWIP_SO_LINGER                  0
+#define LWIP_SO_LINGER                  1
 #endif
 
 /**

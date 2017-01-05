@@ -33,6 +33,7 @@
 #include "ecp.h"
 
 #include "ssl_ciphersuites.h"
+#include "platform.h"
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 #include "x509_crt.h"
