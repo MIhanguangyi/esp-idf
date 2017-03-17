@@ -348,6 +348,18 @@ void bootloader_main()
         return;
     }
 
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO25_U, FUNC_GPIO25_GPIO25);
+
+	GPIO_DIS_OUTPUT(25);
+	REG_SET_BIT(PERIPHS_IO_MUX_GPIO25_U, FUN_PU);
+
+
+	if (!GPIO_INPUT_GET(25) && bs.test.offset != 0) {
+		ESP_LOGE(TAG,"GPIO_25 is pull down ,get in test mode");
+		load_part_pos = bs.test;
+	}
+
+
 #ifdef CONFIG_SECURE_BOOT_ENABLED
     /* Generate secure digest from this bootloader to protect future
        modifications */
