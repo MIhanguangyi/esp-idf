@@ -186,8 +186,7 @@ endif
 	@echo $(ESPTOOLPY_WRITE_FLASH) $(ESPTOOL_ALL_FLASH_ARGS)
 
 
-# Git version of ESP-IDF (of the form v1.0-285-g5c4f707)
-IDF_VER := $(shell git -C $(IDF_PATH) describe)
+IDF_VER := $(shell git -C $(IDF_PATH) describe --always --tags --dirty)
 
 # Set default LDFLAGS
 
@@ -241,13 +240,14 @@ OPTIMIZATION_FLAGS = -Og
 endif
 
 # Enable generation of debugging symbols
-OPTIMIZATION_FLAGS += -ggdb
+# (we generate even in Release mode, as this has no impact on final binary size.)
+DEBUG_FLAGS ?= -ggdb
 
 # List of flags to pass to C compiler
 # If any flags are defined in application Makefile, add them at the end.
 CFLAGS := $(strip \
 	-std=gnu99 \
-	$(OPTIMIZATION_FLAGS) \
+	$(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) \
 	$(COMMON_FLAGS) \
 	$(COMMON_WARNING_FLAGS) -Wno-old-style-declaration \
 	$(CFLAGS) \
@@ -259,7 +259,7 @@ CXXFLAGS := $(strip \
 	-std=gnu++11 \
 	-fno-exceptions \
 	-fno-rtti \
-	$(OPTIMIZATION_FLAGS) \
+	$(OPTIMIZATION_FLAGS) $(DEBUG_FLAGS) \
 	$(COMMON_FLAGS) \
 	$(COMMON_WARNING_FLAGS) \
 	$(CXXFLAGS) \
@@ -410,7 +410,7 @@ define GenerateSubmoduleCheckTarget
 check-submodules: $(IDF_PATH)/$(1)/.git
 $(IDF_PATH)/$(1)/.git:
 	@echo "WARNING: Missing submodule $(1)..."
-	[ -d ${IDF_PATH}/.git ] || ( echo "ERROR: esp-idf must be cloned from git to work."; exit 1)
+	[ -e ${IDF_PATH}/.git ] || ( echo "ERROR: esp-idf must be cloned from git to work."; exit 1)
 	[ -x $(which git) ] || ( echo "ERROR: Need to run 'git submodule init $(1)' in esp-idf root directory."; exit 1)
 	@echo "Attempting 'git submodule update --init $(1)' in esp-idf root directory..."
 	cd ${IDF_PATH} && git submodule update --init $(1)
