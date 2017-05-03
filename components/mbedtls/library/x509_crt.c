@@ -40,6 +40,7 @@
 #include "mbedtls/x509_crt.h"
 #include "mbedtls/oid.h"
 
+#include "rom/ets_sys.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -1898,11 +1899,11 @@ static int x509_crt_verify_top(
     unsigned char hash[MBEDTLS_MD_MAX_SIZE];
     const mbedtls_md_info_t *md_info;
 
-    if( mbedtls_x509_time_is_past( &child->valid_to ) )
+    /*if( mbedtls_x509_time_is_past( &child->valid_to ) )
         *flags |= MBEDTLS_X509_BADCERT_EXPIRED;
 
     if( mbedtls_x509_time_is_future( &child->valid_from ) )
-        *flags |= MBEDTLS_X509_BADCERT_FUTURE;
+        *flags |= MBEDTLS_X509_BADCERT_FUTURE;*/
 
     if( x509_profile_check_md_alg( profile, child->sig_md ) != 0 )
         *flags |= MBEDTLS_X509_BADCERT_BAD_MD;
@@ -1956,10 +1957,10 @@ static int x509_crt_verify_top(
             continue;
         }
 
-        if( mbedtls_x509_time_is_future( &trust_ca->valid_from ) )
+        /*if( mbedtls_x509_time_is_future( &trust_ca->valid_from ) )
         {
             continue;
-        }
+        }*/
 
         if( mbedtls_pk_verify_ext( child->sig_pk, child->sig_opts, &trust_ca->pk,
                            child->sig_md, hash, mbedtls_md_get_size( md_info ),
@@ -1975,9 +1976,9 @@ static int x509_crt_verify_top(
 
         if( x509_profile_check_key( profile, child->sig_pk, &trust_ca->pk ) != 0 )
             *flags |= MBEDTLS_X509_BADCERT_BAD_KEY;
-
         break;
     }
+
 
     /*
      * If top of chain is not the same as the trusted CA send a verify request
