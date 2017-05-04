@@ -1,9 +1,9 @@
-// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+// Copyright 2015-2017 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include <stdint.h>
 #include <string.h>
 
@@ -23,6 +24,7 @@
 #include "rom/cache.h"
 
 #include "soc/cpu.h"
+#include "soc/rtc.h"
 #include "soc/dport_reg.h"
 #include "soc/io_mux_reg.h"
 #include "soc/rtc_cntl_reg.h"
@@ -54,8 +56,12 @@
 #include "esp_int_wdt.h"
 #include "esp_task_wdt.h"
 #include "esp_phy_init.h"
+#include "esp_cache_err_int.h"
 #include "esp_coexist.h"
+#include "esp_panic.h"
 #include "esp_core_dump.h"
+#include "esp_app_trace.h"
+#include "esp_clk.h"
 #include "trax.h"
 
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -92,6 +98,11 @@ static const char* TAG = "cpu_start";
 
 void IRAM_ATTR call_start_cpu0()
 {
+#if CONFIG_FREERTOS_UNICORE
+    RESET_REASON rst_reas[1];
+#else
+    RESET_REASON rst_reas[2];
+#endif
     cpu_configure_region_protection();
 
     //Move exception vectors to IRAM
@@ -99,13 +110,28 @@ void IRAM_ATTR call_start_cpu0()
                   "wsr    %0, vecbase\n" \
                   ::"r"(&_init_start));
 
+    rst_reas[0] = rtc_get_reset_reason(0);
+
+#if !CONFIG_FREERTOS_UNICORE
+    rst_reas[1] = rtc_get_reset_reason(1);
+#endif
+
+    // from panic handler we can be reset by RWDT or TG0WDT
+    if (rst_reas[0] == RTCWDT_SYS_RESET || rst_reas[0] == TG0WDT_SYS_RESET
+#if !CONFIG_FREERTOS_UNICORE
+        || rst_reas[1] == RTCWDT_SYS_RESET || rst_reas[1] == TG0WDT_SYS_RESET
+#endif
+    ) {
+        esp_panic_wdt_stop();
+    }
+
+    //Clear BSS. Please do not attempt to do any complex stuff (like early logging) before this.
     memset(&_bss_start, 0, (&_bss_end - &_bss_start) * sizeof(_bss_start));
 
     /* Unless waking from deep sleep (implying RTC memory is intact), clear RTC bss */
-    if (rtc_get_reset_reason(0) != DEEPSLEEP_RESET) {
+    if (rst_reas[0] != DEEPSLEEP_RESET) {
         memset(&_rtc_bss_start, 0, (&_rtc_bss_end - &_rtc_bss_start) * sizeof(_rtc_bss_start));
     }
-
 
     ESP_EARLY_LOGI(TAG, "Pro cpu up.");
 
@@ -149,6 +175,7 @@ void IRAM_ATTR call_start_cpu1()
                   "wsr    %0, vecbase\n" \
                   ::"r"(&_init_start));
 
+    ets_set_appcpu_boot_addr(0); 
     cpu_configure_region_protection();
 
 #if CONFIG_CONSOLE_UART_NONE
@@ -170,17 +197,17 @@ void start_cpu0_default(void)
 {
     esp_setup_syscall_table();
 //Enable trace memory and immediately start trace.
-#if CONFIG_MEMMAP_TRACEMEM
-#if CONFIG_MEMMAP_TRACEMEM_TWOBANKS
+#if CONFIG_ESP32_TRAX
+#if CONFIG_ESP32_TRAX_TWOBANKS
     trax_enable(TRAX_ENA_PRO_APP);
 #else
     trax_enable(TRAX_ENA_PRO);
 #endif
     trax_start_trace(TRAX_DOWNCOUNT_WORDS);
 #endif
-    esp_set_cpu_freq();     // set CPU frequency configured in menuconfig
+    esp_clk_init();
 #ifndef CONFIG_CONSOLE_UART_NONE
-    uart_div_modify(CONFIG_CONSOLE_UART_NUM, (APB_CLK_FREQ << 4) / CONFIG_CONSOLE_UART_BAUDRATE);
+    uart_div_modify(CONFIG_CONSOLE_UART_NUM, (rtc_clk_apb_freq_get() << 4) / CONFIG_CONSOLE_UART_BAUDRATE);
 #endif
 #if CONFIG_BROWNOUT_DET
     esp_brownout_init();
@@ -199,6 +226,12 @@ void start_cpu0_default(void)
     _GLOBAL_REENT->_stdout = (FILE*) &__sf_fake_stdout;
     _GLOBAL_REENT->_stderr = (FILE*) &__sf_fake_stderr;
 #endif
+#if CONFIG_ESP32_APPTRACE_ENABLE
+    esp_err_t err = esp_apptrace_init();
+    if (err != ESP_OK) {
+        ESP_EARLY_LOGE(TAG, "Failed to init apptrace module on CPU0 (%d)!", err);
+    }
+#endif
     do_global_ctors();
 #if CONFIG_INT_WDT
     esp_int_wdt_init();
@@ -206,9 +239,8 @@ void start_cpu0_default(void)
 #if CONFIG_TASK_WDT
     esp_task_wdt_init();
 #endif
-#if !CONFIG_FREERTOS_UNICORE
+    esp_cache_err_int_init();
     esp_crosscore_int_init();
-#endif
     esp_ipc_init();
     spi_flash_init();
     /* init default OS-aware flash access critical section */
@@ -228,8 +260,14 @@ void start_cpu0_default(void)
 #if !CONFIG_FREERTOS_UNICORE
 void start_cpu1_default(void)
 {
-#if CONFIG_MEMMAP_TRACEMEM_TWOBANKS
+#if CONFIG_ESP32_TRAX_TWOBANKS
     trax_start_trace(TRAX_DOWNCOUNT_WORDS);
+#endif
+#if CONFIG_ESP32_APPTRACE_ENABLE
+    esp_err_t err = esp_apptrace_init();
+    if (err != ESP_OK) {
+        ESP_EARLY_LOGE(TAG, "Failed to init apptrace module on CPU1 (%d)!", err);
+    }
 #endif
     // Wait for FreeRTOS initialization to finish on PRO CPU
     while (port_xSchedulerRunning[0] == 0) {
@@ -237,6 +275,7 @@ void start_cpu1_default(void)
     }
     //Take care putting stuff here: if asked, FreeRTOS will happily tell you the scheduler
     //has started, but it isn't active *on this CPU* yet.
+    esp_cache_err_int_init();
     esp_crosscore_int_init();
 
     ESP_EARLY_LOGI(TAG, "Starting scheduler on APP CPU.");
