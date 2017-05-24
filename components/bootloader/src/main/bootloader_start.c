@@ -259,7 +259,7 @@ static void print_flash_id()
 	uint8_t mfg_id;
 	uint16_t flash_id;
 
-	SPI_Wait_Idle(&g_rom_flashchip);
+	esp_rom_spiflash_wait_idle(&g_rom_flashchip);
 
 	/* Set up some of the SPIFLASH user/ctrl variables which don't change
 	   while we're probing using execute_flash_command() */
