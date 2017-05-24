@@ -6298,6 +6298,7 @@ int mbedtls_ssl_handshake_step( mbedtls_ssl_context *ssl )
  */
 int mbedtls_ssl_handshake( mbedtls_ssl_context *ssl )
 {
+#if 0
     int ret = 0;
 
     if( ssl == NULL || ssl->conf == NULL )
@@ -6314,6 +6315,21 @@ int mbedtls_ssl_handshake( mbedtls_ssl_context *ssl )
     }
 
     MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= handshake" ) );
+
+#else //xiaomi used timer to call this function ,so call mbedtls_ssl_handshake_step one in this function;
+    int ret = 0;
+
+    if( ssl == NULL || ssl->conf == NULL )
+       return( MBEDTLS_ERR_SSL_BAD_INPUT_DATA );
+
+    MBEDTLS_SSL_DEBUG_MSG( 2, ( "=> handshake" ) );
+
+    ret = mbedtls_ssl_handshake_step( ssl );
+
+    MBEDTLS_SSL_DEBUG_MSG( 2, ( "<= handshake" ) );
+
+    return( ret );
+#endif
 
     return( ret );
 }
