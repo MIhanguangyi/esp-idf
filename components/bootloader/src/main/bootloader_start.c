@@ -39,6 +39,8 @@
 #include "soc/timer_group_reg.h"
 #include "soc/gpio_reg.h"
 #include "soc/gpio_sig_map.h"
+#include "soc/rtc_io_reg.h"
+#include "soc/spi_struct.h"
 
 #include "sdkconfig.h"
 #include "esp_image_format.h"
@@ -228,6 +230,55 @@ static bool ota_select_valid(const esp_ota_select_entry_t *s)
   return s->ota_seq != UINT32_MAX && s->crc == ota_select_crc(s);
 }
 
+
+#if !CONFIG_FLASHMODE_QIO && !CONFIG_FLASHMODE_QOUT
+
+#define SPIFLASH 		SPI1
+#define CMD_RDID		0x9F
+
+static uint32_t execute_flash_command(uint8_t command, uint32_t mosi_data, uint8_t mosi_len, uint8_t miso_len)
+{
+    SPIFLASH.user2.usr_command_value = command;
+    SPIFLASH.user.usr_miso = miso_len > 0;
+    SPIFLASH.miso_dlen.usr_miso_dbitlen = miso_len ? (miso_len - 1) : 0;
+    SPIFLASH.user.usr_mosi = mosi_len > 0;
+    SPIFLASH.mosi_dlen.usr_mosi_dbitlen = mosi_len ? (mosi_len - 1) : 0;
+    SPIFLASH.data_buf[0] = mosi_data;
+
+    SPIFLASH.cmd.usr = 1;
+    while(SPIFLASH.cmd.usr != 0)
+    { }
+
+    return SPIFLASH.data_buf[0];
+}
+
+
+static void print_flash_id()
+{
+	uint32_t raw_flash_id;
+	uint8_t mfg_id;
+	uint16_t flash_id;
+
+	esp_rom_spiflash_wait_idle(&g_rom_flashchip);
+
+	/* Set up some of the SPIFLASH user/ctrl variables which don't change
+	   while we're probing using execute_flash_command() */
+	SPIFLASH.ctrl.val = 0;
+	SPIFLASH.user.usr_dummy = 0;
+	SPIFLASH.user.usr_addr = 0;
+	SPIFLASH.user.usr_command = 1;
+	SPIFLASH.user2.usr_command_bitlen = 7;
+
+	raw_flash_id = execute_flash_command(CMD_RDID, 0, 0, 24);
+	ESP_LOGI(TAG, "SPI Flash RID  : 0x%X", raw_flash_id);
+	mfg_id = raw_flash_id & 0xFF;
+	flash_id = (raw_flash_id >> 16) | (raw_flash_id & 0xFF00);
+	ESP_LOGI(TAG, "SPI Flash  MF  : 0x%02X", mfg_id);
+	ESP_LOGI(TAG, "SPI Flash  ID  : 0x%04X", flash_id);
+
+}
+#endif
+
 /**
  *  @function :     bootloader_main
  *  @description:   entry function of 2nd bootloader
@@ -274,6 +325,8 @@ void bootloader_main()
 
 #if CONFIG_FLASHMODE_QIO || CONFIG_FLASHMODE_QOUT
     bootloader_enable_qio_mode();
+#else
+    print_flash_id();
 #endif
 
     if(esp_image_load_header(0x1000, true, &fhdr) != ESP_OK) {
@@ -363,6 +416,18 @@ void bootloader_main()
         ESP_LOGE(TAG, "nothing to load");
         return;
     }
+
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO25_U, FUNC_GPIO25_GPIO25);
+	PIN_INPUT_ENABLE(PERIPHS_IO_MUX_GPIO25_U);
+	GPIO_DIS_OUTPUT(25);
+	SET_PERI_REG_MASK(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_RUE_M);
+	ets_delay_us(10);
+
+	if (!GPIO_INPUT_GET(25) && bs.test.offset != 0) {
+		ESP_LOGE(TAG,"GPIO_25 is pull down ,get in test mode");
+		load_part_pos = bs.test;
+	}
+
 
 #ifdef CONFIG_SECURE_BOOT_ENABLED
     /* Generate secure digest from this bootloader to protect future
