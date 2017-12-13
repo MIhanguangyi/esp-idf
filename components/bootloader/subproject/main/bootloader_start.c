@@ -302,6 +302,20 @@ static int get_selected_boot_partition(const bootloader_state_t *bs)
     esp_ota_select_entry_t sa,sb;
     const esp_ota_select_entry_t *ota_select_map;
 
+//xiaomi config.
+#ifndef CONFIG_MI_TEST_MODE_DISABLED
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO25_U, FUNC_GPIO25_GPIO25);
+	PIN_INPUT_ENABLE(PERIPHS_IO_MUX_GPIO25_U);
+	GPIO_DIS_OUTPUT(25);
+	SET_PERI_REG_MASK(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_RUE_M);
+	ets_delay_us(10);
+
+	if (!GPIO_INPUT_GET(25) && bs->test.offset != 0) {
+		ESP_LOGE(TAG,"GPIO_25 is pull down ,get in test mode");
+		return TEST_APP_INDEX;
+	}
+#endif
+
     if (bs->ota_info.offset != 0) {
         // partition table has OTA data partition
         if (bs->ota_info.size < 2 * SPI_SEC_SIZE) {
@@ -400,7 +414,11 @@ static bool load_boot_image(const bootloader_state_t *bs, int start_index, esp_i
     esp_partition_pos_t part;
 
     /* work backwards from start_index, down to the factory app */
+#ifndef CONFIG_MI_TEST_MODE_DISABLED
+    for(index = start_index; index >= TEST_APP_INDEX; index--) {
+#else
     for(index = start_index; index >= FACTORY_INDEX; index--) {
+#endif
         part = index_to_partition(bs, index);
         if (part.size == 0) {
             continue;
@@ -553,19 +571,7 @@ void bootloader_main()
     if (!load_boot_image(&bs, boot_index, &image_data)) {
         return;
     }
-//xiaomi config.
-#ifndef CONFIG_MI_TEST_MODE_DISABLED
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO25_U, FUNC_GPIO25_GPIO25);
-	PIN_INPUT_ENABLE(PERIPHS_IO_MUX_GPIO25_U);
-	GPIO_DIS_OUTPUT(25);
-	SET_PERI_REG_MASK(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_RUE_M);
-	ets_delay_us(10);
 
-	if (!GPIO_INPUT_GET(25) && bs.test.offset != 0) {
-		ESP_LOGE(TAG,"GPIO_25 is pull down ,get in test mode");
-		//load_part_pos = bs.test;//TODO
-	}
-#endif
 
 #ifdef CONFIG_SECURE_BOOT_ENABLED
     /* Generate secure digest from this bootloader to protect future
