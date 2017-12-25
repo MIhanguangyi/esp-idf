@@ -135,7 +135,7 @@ int xt_clock_freq(void) __attribute__((deprecated));
 #endif
 
 #if CONFIG_FREERTOS_ASSERT_ON_UNTESTED_FUNCTION
-#define UNTESTED_FUNCTION() { ets_printf("Untested FreeRTOS function %s\r\n", __FUNCTION__); configASSERT(false); } while(0)
+#define UNTESTED_FUNCTION() //{ ets_printf("Untested FreeRTOS function %s\r\n", __FUNCTION__); configASSERT(false); } while(0)
 #else
 #define UNTESTED_FUNCTION()
 #endif
@@ -214,6 +214,11 @@ int xt_clock_freq(void) __attribute__((deprecated));
 #ifdef CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
 #define configGENERATE_RUN_TIME_STATS   1       /* Used by vTaskGetRunTimeStats() */
 #endif
+
+//add by xiaomi
+#define configUSE_TRACE_FACILITY		1		/* Used by vTaskList in main.c */
+#define configUSE_STATS_FORMATTING_FUNCTIONS	1	/* Used by vTaskList in main.c */
+//add by xiaomi end.
 
 #define configUSE_TRACE_FACILITY_2      0		/* Provided by Xtensa port patch */
 #define configBENCHMARK					0		/* Provided by Xtensa port patch */

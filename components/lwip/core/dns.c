@@ -85,6 +85,16 @@
 
 #include <string.h>
 
+//add by xiaomi.
+/** DNS server IP address */
+#ifndef DNS_SERVER_ADDRESS
+#define DNS_SERVER_ADDRESS(ipaddr)        do{ip_addr_t *ip_add = ipaddr;\
+	ip4_addr_t dnsserver_ip4 = ip_add->u_addr.ip4;\
+	ip4_addr_set_u32(&dnsserver_ip4, ipaddr_addr("8.8.8.8"));\
+	}while(0)/* resolver1.opendns.com(208.67.222.222) */
+
+#endif
+
 /** Random generator function to create random TXIDs and source ports for queries */
 #ifndef DNS_RAND_TXID
 #if ((LWIP_DNS_SECURE & LWIP_DNS_SECURE_RAND_XID) != 0)
