@@ -441,7 +441,7 @@ static const esp_partition_t *find_default_boot_partition(void)
     return NULL;
 }
 
-const esp_partition_t *esp_ota_get_boot_partition(void)
+esp_partition_t *esp_ota_get_boot_partition(void)
 {
     esp_err_t ret;
     const esp_partition_t *find_partition = NULL;
