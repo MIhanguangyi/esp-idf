@@ -271,8 +271,11 @@ esp_err_t uart_get_hw_flow_ctrl(uart_port_t uart_num, uart_hw_flowcontrol_t* flo
 static esp_err_t uart_reset_rx_fifo(uart_port_t uart_num)
 {
     UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", ESP_FAIL);
-    // Read all data from the FIFO
-    while (UART[uart_num]->status.rxfifo_cnt) {
+    //Due to hardware issue, we can not use fifo_rst to reset uart fifo.
+    //See description about UART_TXFIFO_RST and UART_RXFIFO_RST in <<esp32_technical_reference_manual>> v2.6 or later.
+
+    // we read the data out and make `fifo_len == 0 && rd_addr == wr_addr`.
+    while(UART[uart_num]->status.rxfifo_cnt != 0 || (UART[uart_num]->mem_rx_status.wr_addr != UART[uart_num]->mem_rx_status.rd_addr)) {
         READ_PERI_REG(UART_FIFO_REG(uart_num));
     }
     return ESP_OK;
@@ -692,12 +695,9 @@ static void uart_rx_intr_handler_default(void *param)
                 uart_event.type = UART_BUFFER_FULL;
             }
         } else if(uart_intr_status & UART_RXFIFO_OVF_INT_ST_M) {
+            // When fifo overflows, we reset the fifo.
             UART_ENTER_CRITICAL_ISR(&uart_spinlock[uart_num]);
-            // Read all data from the FIFO
-            rx_fifo_len = uart_reg->status.rxfifo_cnt;
-            for (int i = 0; i < rx_fifo_len; i++) {
-                READ_PERI_REG(UART_FIFO_REG(uart_num));
-            }
+            uart_reset_rx_fifo(uart_num);
             uart_reg->int_clr.rxfifo_ovf = 1;
             UART_EXIT_CRITICAL_ISR(&uart_spinlock[uart_num]);
             uart_event.type = UART_FIFO_OVF;
@@ -858,7 +858,6 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
             offset += send_size;
             uart_enable_tx_intr(uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
         }
-        xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
     } else {
         while(size) {
             //semaphore for tx_fifo available
@@ -921,9 +920,6 @@ int uart_read_bytes(uart_port_t uart_num, uint8_t* buf, uint32_t length, TickTyp
                 p_uart_obj[uart_num]->rx_cur_remain = size;
             } else {
                 xSemaphoreGive(p_uart_obj[uart_num]->rx_mux);
-                UART_ENTER_CRITICAL(&uart_spinlock[uart_num]);
-                p_uart_obj[uart_num]->rx_buffered_len -= copy_len;
-                UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
                 return copy_len;
             }
         }
@@ -933,7 +929,10 @@ int uart_read_bytes(uart_port_t uart_num, uint8_t* buf, uint32_t length, TickTyp
             len_tmp = p_uart_obj[uart_num]->rx_cur_remain;
         }
         memcpy(buf + copy_len, p_uart_obj[uart_num]->rx_ptr, len_tmp);
+        UART_ENTER_CRITICAL(&uart_spinlock[uart_num]);
+        p_uart_obj[uart_num]->rx_buffered_len -= len_tmp;
         p_uart_obj[uart_num]->rx_ptr += len_tmp;
+        UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
         p_uart_obj[uart_num]->rx_cur_remain -= len_tmp;
         copy_len += len_tmp;
         length -= len_tmp;
@@ -953,10 +952,8 @@ int uart_read_bytes(uart_port_t uart_num, uint8_t* buf, uint32_t length, TickTyp
             }
         }
     }
+
     xSemaphoreGive(p_uart_obj[uart_num]->rx_mux);
-    UART_ENTER_CRITICAL(&uart_spinlock[uart_num]);
-    p_uart_obj[uart_num]->rx_buffered_len -= copy_len;
-    UART_EXIT_CRITICAL(&uart_spinlock[uart_num]);
     return copy_len;
 }
 
@@ -968,7 +965,9 @@ esp_err_t uart_get_buffered_data_len(uart_port_t uart_num, size_t* size)
     return ESP_OK;
 }
 
-esp_err_t uart_flush(uart_port_t uart_num)
+esp_err_t uart_flush(uart_port_t uart_num) __attribute__((alias("uart_flush_input")));
+
+esp_err_t uart_flush_input(uart_port_t uart_num)
 {
     UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", ESP_FAIL);
     UART_CHECK((p_uart_obj[uart_num]), "uart driver error", ESP_FAIL);
@@ -1025,7 +1024,7 @@ esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_b
     UART_CHECK((intr_alloc_flags & ESP_INTR_FLAG_IRAM) == 0, "ESP_INTR_FLAG_IRAM set in intr_alloc_flags", ESP_FAIL); /* uart_rx_intr_handler_default is not in IRAM */
 
     if(p_uart_obj[uart_num] == NULL) {
-        p_uart_obj[uart_num] = (uart_obj_t*) malloc(sizeof(uart_obj_t));
+        p_uart_obj[uart_num] = (uart_obj_t*) calloc(1, sizeof(uart_obj_t));
         if(p_uart_obj[uart_num] == NULL) {
             ESP_LOGE(UART_TAG, "UART driver malloc error");
             return ESP_FAIL;
